@@ -4,11 +4,19 @@
 
  Start with source code ↓
  ```bash
- $ go run main.go [port default 6043]
+ $ go run main.go
+ 
+ or specify the port number
+ 
+ $ go run main.go 8080
  ```
  Or the binary file in release
  ```bash
- $ ./http_file_server [port default 6043]
+ $ ./http_file_server
+ 
+  or specify the port number
+
+ $ ./http_file_server 8080
  ```
 # build
 ```bash
