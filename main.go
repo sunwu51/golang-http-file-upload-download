@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -35,8 +34,17 @@ func main() {
 func uploadFileHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			t, _ := template.ParseFiles("upload.gtpl")
-			t.Execute(w, nil)
+			w.Write([]byte(`<html>
+			<head>
+				<title>Upload file</title>
+			</head>
+			<body>
+			<form enctype="multipart/form-data" action="upload" method="post">
+				<input type="file" name="uploadFile" />
+				<input type="submit" value="upload" />
+			</form>
+			</body>
+			</html>`))
 			return
 		}
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
