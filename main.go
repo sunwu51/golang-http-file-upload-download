@@ -6,23 +6,30 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
-const maxUploadSize = 2 * 1024 * 1024 // 2 mb
-var uploadPath = os.TempDir()
+const maxUploadSize = 2 * 1024 * 1024 * 1024 // 2 Gb
+var uploadPath, _ = os.Getwd()
 
 func main() {
+	port := 6043
+	num := len(os.Args)
+	if num > 1 {
+		portNum, err := strconv.ParseInt(os.Args[1], 10, 32)
+		if err != nil {
+			log.Panic("Invalid port")
+		}
+		port = int(portNum)
+	}
 	http.HandleFunc("/upload", uploadFileHandler())
-
 	fs := http.FileServer(http.Dir(uploadPath))
-	http.Handle("/files/", http.StripPrefix("/files", fs))
-
-	log.Print("Server started on localhost:8080, use /upload for uploading files and /files/{fileName} for downloading")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.Handle("/", http.StripPrefix("/", fs))
+	log.Printf("Server started on 0.0.0.0:%d, use / for browser, /upload for uploading files and /{fileName} for downloading", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 func uploadFileHandler() http.HandlerFunc {
@@ -59,29 +66,17 @@ func uploadFileHandler() http.HandlerFunc {
 			return
 		}
 
-		// check file type, detectcontenttype only needs the first 512 bytes
-		detectedFileType := http.DetectContentType(fileBytes)
-		switch detectedFileType {
-		case "image/jpeg", "image/jpg":
-		case "image/gif", "image/png":
-		case "application/pdf":
-			break
-		default:
-			renderError(w, "INVALID_FILE_TYPE", http.StatusBadRequest)
-			return
-		}
-		fileName := randToken(12)
-		fileEndings, err := mime.ExtensionsByType(detectedFileType)
+		// use a random file name
+		fileName := fileHeader.Filename
+		fmt.Printf("File name %s\n", fileName)
 		if err != nil {
 			renderError(w, "CANT_READ_FILE_TYPE", http.StatusInternalServerError)
 			return
 		}
 
-		newFileName := fileName + fileEndings[0]
-		newPath := filepath.Join(uploadPath, newFileName)
-		fmt.Printf("FileType: %s, File: %s\n", detectedFileType, newPath)
+		newPath := filepath.Join(uploadPath, fileName)
 
-		// write file
+		// write file, if file exists already, replace existing
 		newFile, err := os.Create(newPath)
 		if err != nil {
 			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
@@ -92,7 +87,7 @@ func uploadFileHandler() http.HandlerFunc {
 			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte(fmt.Sprintf("SUCCESS - use /files/%v to access the file", newFileName)))
+		w.Write([]byte(fmt.Sprintf("SUCCESS - use /%s to access the file", fileName)))
 	})
 }
 
